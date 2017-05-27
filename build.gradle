@@ -66,7 +66,7 @@ dependencies {
 test {
     environment "DYNAMODB_USER_TABLE", "user_test_table"
     testLogging {
-        events "passed", "skipped", "failed", "standardOut", "standardError"
+        events "passed", "skipped", "failed"//, "standardOut", "standardError"
     }
 }
 
