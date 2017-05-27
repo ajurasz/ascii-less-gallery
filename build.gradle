@@ -60,7 +60,6 @@ dependencies {
     testCompile 'org.elasticsearch.client:transport:5.0.0'
     testCompile 'org.apache.logging.log4j:log4j-api:2.6.2'
     testCompile 'org.apache.logging.log4j:log4j-core:2.6.2'
-    testCompile 'ch.qos.logback:logback-classic:1.1.7'
 }
 
 test {

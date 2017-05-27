@@ -5,6 +5,9 @@ import ajurasz.model.GalleryItem
 import ajurasz.service.ElasticsearchService
 import ajurasz.toJson
 import ajurasz.toObject
+import io.kotlintest.Spec
+import io.kotlintest.TestCaseConfig
+import io.kotlintest.TestCaseContext
 import io.kotlintest.matchers.shouldBe
 import io.kotlintest.matchers.shouldEqual
 import io.kotlintest.specs.FreeSpec
@@ -55,13 +58,26 @@ class ElasticsearchServiceSpec : FreeSpec() {
         }
     }
 
+    val testInterceptor: (TestCaseContext, () -> Unit) -> Unit = { context, testCase ->
+        embeddedElastic.recreateIndices()
+        testCase()
+    }
+
+    override fun interceptSpec(context: Spec, spec: () -> Unit) {
+        spec()
+        client.close()
+        embeddedElastic.stop()
+    }
+
+    override val defaultTestCaseConfig = TestCaseConfig(interceptors = listOf(testInterceptor))
+
+
     val elasticsearchService = ElasticsearchService(jestClient)
 
     init {
         "Elasticsearch service" - {
             "Should add gallery item" {
                 // given
-                embeddedElastic.recreateIndices() // TODO: move to before
                 val email = "foo@bar.com"
                 val item = GalleryItem("id", "ascii", listOf("a", "b", "c"))
 
@@ -85,7 +101,6 @@ class ElasticsearchServiceSpec : FreeSpec() {
 
             "Should list gallery items" {
                 // given
-                embeddedElastic.recreateIndices() // TODO: move to before
                 val email = "foo@bar.com"
                 val item1 = GalleryItem("1", "ascii1", listOf("a1", "b1", "c1"))
                 val item2 = GalleryItem("2", "ascii2", listOf("a2"))
@@ -123,7 +138,6 @@ class ElasticsearchServiceSpec : FreeSpec() {
 
             "Should remove gallery item" {
                 // given
-                embeddedElastic.recreateIndices() // TODO: move to before
                 val email = "foo@bar.com"
                 val item1 = GalleryItem("id", "ascii1", listOf("a1", "b1", "c1"))
                 embeddedElastic.index(INDEX_NAME_VALUE, email, mapOf(item1.id to item1.toJson()) as Map<CharSequence, CharSequence>)
@@ -144,7 +158,6 @@ class ElasticsearchServiceSpec : FreeSpec() {
 
             "Should not remove gallery item from other users" {
                 // given
-                embeddedElastic.recreateIndices() // TODO: move to before
                 val email = "foo@bar.com"
                 val item1 = GalleryItem("1", "ascii1", listOf("a1", "b1", "c1"))
                 embeddedElastic.index(INDEX_NAME_VALUE, email, mapOf(item1.id to item1.toJson()) as Map<CharSequence, CharSequence>)
