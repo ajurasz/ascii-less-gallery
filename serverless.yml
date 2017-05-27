@@ -1,0 +1,190 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: ascii-less-gallery
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+
+provider:
+  name: aws
+  runtime: java8
+  profiles: sless
+  timeout: 60
+  environment:
+    DYNAMODB_USER_TABLE: ${self:service}-${opt:stage, self:provider.stage}-user
+    ES_DOMAIN_NAME: es-gallery
+    REDIS_URL: ${file(serverless-config.yml):${opt:stage, self:provider.stage}.RedisUrl}
+    REDIS_PORT: ${file(serverless-config.yml):${opt:stage, self:provider.stage}.RedisPort}
+    ES_URL: ${file(serverless-config.yml):${opt:stage, self:provider.stage}.ElasticsearchUrl}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "lambda:InvokeFunction"
+      Resource: "*"
+    - Effect: "Allow"
+      Action:
+        - "rekognition:DetectLabels"
+      Resource: "*"
+    - Effect: "Allow"
+      Action:
+        - "es:ESHttpDelete"
+        - "es:ESHttpGet"
+        - "es:ESHttpPost"
+        - "es:ESHttpPut"
+      Resource: "arn:aws:es:${opt:region, self:provider.region}:*:domain/${self:provider.environment.ES_DOMAIN_NAME}/*"
+    - Effect: Allow
+      Action:
+        - "dynamodb:GetItem"
+        - "dynamodb:PutItem"
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_USER_TABLE}"
+# you can overwrite defaults here
+#  stage: dev
+#  region: us-east-1
+
+# you can add statements to the Lambda function's IAM Role here
+#  iamRoleStatements:
+#    - Effect: "Allow"
+#      Action:
+#        - "s3:ListBucket"
+#      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
+#    - Effect: "Allow"
+#      Action:
+#        - "s3:PutObject"
+#      Resource:
+#        Fn::Join:
+#          - ""
+#          - - "arn:aws:s3:::"
+#            - "Ref" : "ServerlessDeploymentBucket"
+#            - "/*"
+
+# you can define service wide environment variables here
+#  environment:
+#    variable1: value1
+
+# you can add packaging information here
+package:
+  artifact: build/distributions/ascii-gallery.zip
+
+functions:
+# Auth function
+  auth:
+    handler: ajurasz.lambda.auth.ValidateHandler
+
+# Account functions
+  login:
+    handler: ajurasz.lambda.auth.LoginHandler
+    events:
+      - http:
+          path: login
+          method: post
+  register:
+    handler: ajurasz.lambda.auth.RegisterHandler
+    events:
+      - http:
+          path: register
+          method: post
+
+# Gallery functions
+  create:
+    handler: ajurasz.lambda.gallery.CreateHandler
+    events:
+      - http:
+          path: gallery
+          method: post
+          integration: lambda
+          request:
+            passThrough: WHEN_NO_TEMPLATES
+            template:
+              image/png: '{ "operation" : "create", "base64Image" : "$input.body", "principalId" : "$context.authorizer.principalId" }'
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 30
+            identitySource: method.request.header.token
+  list:
+    handler: ajurasz.lambda.gallery.ListHandler
+    events:
+      - http:
+          path: gallery
+          method: get
+  delete:
+    handler: ajurasz.lambda.gallery.DeleteHandler
+    events:
+      - http:
+          path: gallery/{id}
+          method: delete
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 30
+            identitySource: method.request.header.token
+
+#    The following are a few example events you can configure
+#    NOTE: Please make sure to change your handler code to work with those events
+#    Check the event documentation for details
+#    events:
+#      - http:
+#          path: users/create
+#          method: get
+#      - s3: ${env:BUCKET}
+#      - schedule: rate(10 minutes)
+#      - sns: greeter-topic
+#      - stream: arn:aws:dynamodb:region:XXXXXX:table/foo/stream/1970-01-01T00:00:00.000
+#      - alexaSkill
+#      - iot:
+#          sql: "SELECT * FROM 'some_topic'"
+#      - cloudwatchEvent:
+#          event:
+#            source:
+#              - "aws.ec2"
+#            detail-type:
+#              - "EC2 Instance State-change Notification"
+#            detail:
+#              state:
+#                - pending
+#      - cloudwatchLog: '/aws/lambda/hello'
+
+#    Define function environment variables here
+#    environment:
+#      variable2: value2
+
+# you can add CloudFormation resource templates here
+#resources:
+#  Resources:
+#    NewResource:
+#      Type: AWS::S3::Bucket
+#      Properties:
+#        BucketName: my-new-bucket
+#  Outputs:
+#     NewOutput:
+#       Description: "Description for the output"
+#       Value: "Some output value"
+
+resources:
+  Resources:
+    UserTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: ${file(serverless-config.yml):${opt:stage, self:provider.stage}.DeletionPolicy}
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: email
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: email
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_USER_TABLE}

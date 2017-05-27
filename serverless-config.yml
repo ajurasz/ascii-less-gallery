@@ -1,0 +1,11 @@
+dev:
+  DeletionPolicy: Delete
+  RedisUrl: "redis-12446.c11.us-east-1-3.ec2.cloud.redislabs.com"
+  RedisPort: 12446
+  ElasticsearchUrl: "https://search-es-gallery-iirelkdco6j7nxtlzs7pc4t2i4.us-east-1.es.amazonaws.com"
+
+prod:
+  DeletionPolicy: Retein
+  RedisUrl: "redis-12446.c11.us-east-1-3.ec2.cloud.redislabs.com"
+  RedisPort: 12446
+  ElasticsearchUrl: "https://search-es-gallery-iirelkdco6j7nxtlzs7pc4t2i4.us-east-1.es.amazonaws.com"

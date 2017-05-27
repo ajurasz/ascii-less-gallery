@@ -1,0 +1,100 @@
+buildscript {
+    ext.kotlin_version = '1.1.2-2'
+    ext.jackson_module_kotlin_version = '2.8.7'
+    ext.commons_codec_version = '1.10'
+    ext.jest_version = '2.4.0'
+    ext.sri_version = '0.0.16'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'kotlin'
+apply plugin: 'jacoco'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    maven { url "https://jitpack.io" }
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    // aws
+    compile 'com.amazonaws:aws-lambda-java-core:1.1.0'
+    compile 'com.amazonaws:aws-lambda-java-log4j:1.0.0'
+    compile 'com.amazonaws:aws-java-sdk-dynamodb:1.11.126'
+    compile 'com.amazonaws:aws-java-sdk-rekognition:1.11.126'
+    compile "vc.inreach.aws:aws-signing-request-interceptor:$sri_version"
+
+    // es
+    compile "io.searchbox:jest:$jest_version"
+
+    // redis
+    compile "redis.clients:jedis:2.9.0"
+
+    // jwt
+    compile 'io.jsonwebtoken:jjwt:0.7.0'
+
+    // utils
+    compile "commons-codec:commons-codec:$commons_codec_version"
+    compile "com.fasterxml.jackson.module:jackson-module-kotlin:$jackson_module_kotlin_version"
+    compile 'com.github.korhner:asciimg:95c7764a6abe0e893fae56b3b6b580e09e1de209'
+
+    // testing
+    testCompile("com.nhaarman:mockito-kotlin:1.4.0") {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+    testCompile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+    testCompile("io.kotlintest:kotlintest:2.0.2") {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+    testCompile 'pl.allegro.tech:embedded-elasticsearch:2.1.0'
+    testCompile 'org.elasticsearch:elasticsearch:5.0.0'
+    testCompile 'org.elasticsearch.client:transport:5.0.0'
+    testCompile 'org.apache.logging.log4j:log4j-api:2.6.2'
+    testCompile 'org.apache.logging.log4j:log4j-core:2.6.2'
+    testCompile 'ch.qos.logback:logback-classic:1.1.7'
+}
+
+test {
+    environment "DYNAMODB_USER_TABLE", "user_test_table"
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+    }
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled = true
+        html.enabled = true
+    }
+}
+
+check.dependsOn jacocoTestReport
+
+task buildZip(type: Zip) {
+    baseName = "ascii-gallery"
+    from compileJava
+    from compileKotlin
+    from processResources
+    into('lib') {
+        from configurations.runtime
+    }
+}
+
+build.dependsOn buildZip
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.5'
+}
+
+sourceSets {
+    main.java.srcDirs += 'src/main/kotlin'
+}
