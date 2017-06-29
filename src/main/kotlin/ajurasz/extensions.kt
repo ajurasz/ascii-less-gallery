@@ -9,6 +9,6 @@ val mapper: ObjectMapper = jacksonObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
 fun Any.toJson(): String = mapper.writeValueAsString(this)
-fun <T> String.toObject(clazz: Class<T>): T = mapper.readValue(this, clazz)
+inline fun <reified T> String.toObject(): T = mapper.readValue(this, T::class.java)
 
 fun String.sha256Hex() = DigestUtils.sha256Hex(this)
